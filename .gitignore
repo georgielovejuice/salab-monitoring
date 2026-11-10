@@ -1,0 +1,11 @@
+# Secrets: never commit
+*.psk
+*.key
+*.pem
+.env
+*token*
+
+# OS / editor
+.DS_Store
+.vscode/
+*.swp

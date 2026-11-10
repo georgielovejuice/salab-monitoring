@@ -1,0 +1,18 @@
+// Tailscale access policy (emails replaced). Explained in docs/03-access.md
+{
+  "groups": {"group:team": ["member1@example.com", "member2@example.com", "member3@example.com"]},
+
+  // 4via6 addresses (site ID 7): last 32 bits = IPv4 in hex, c0a8:133 = 192.168.1.51
+  "hosts": {
+    "proxmox": "fd7a:115c:a1e0:b1a:0:7:c0a8:10a",
+    "sa-web1": "fd7a:115c:a1e0:b1a:0:7:c0a8:133",
+    "sa-web2": "fd7a:115c:a1e0:b1a:0:7:c0a8:134",
+    "sa-web3": "fd7a:115c:a1e0:b1a:0:7:c0a8:135",
+  },
+
+  "grants": [
+    {"src": ["autogroup:admin"], "dst": ["*"], "ip": ["*"]},
+    {"src": ["group:team"], "dst": ["proxmox"], "ip": ["tcp:8006"]},
+    {"src": ["group:team"], "dst": ["sa-web1", "sa-web2", "sa-web3"], "ip": ["tcp:22", "tcp:80", "icmp:*", "ipv6-icmp:*"]},
+  ],
+}
