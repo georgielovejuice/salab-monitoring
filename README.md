@@ -1,8 +1,16 @@
-# salab — Hybrid Network Monitoring with Zabbix
+# salab: Hybrid Network Monitoring with Zabbix
 
-Log centralization and network monitoring for three Linux web servers, built by hand on a **Proxmox homelab** with the monitoring server in **Azure**. Group project for *01276521 Practice of System Administration*, KMITL.
+This is a group project for *01276521 Practice of System Administration* at KMITL. The assignment is log centralization and network monitoring for at least three Linux web servers. Everything has to be open source and installed by hand, with 8 email alerts and a live demo at the end.
 
-The interesting constraint: the homelab sits behind **carrier-grade NAT (CGNAT)**, so the cloud can never open a connection into it. The design works around that with a **Zabbix proxy** that only ever connects outbound, over a PSK-encrypted link, and buffers data if the internet drops.
+I built the homelab side: Proxmox, the Zabbix proxy, the firewall and team access. A teammate runs the Zabbix server on an Azure VM.
+
+## The CGNAT problem
+
+My home internet is behind CGNAT. My ISP shares one public IP between me and a bunch of other customers. I can reach the internet fine, but nothing on the internet can connect in to me.
+
+That's a real problem when the monitoring server is in Azure and the web servers are in my house. We tried the simple way first and pointed the agents straight at Azure's public IP. It didn't work out. Azure could never connect back to the agents, and allowing my home IP on the Azure side would also allow every stranger sharing it.
+
+So I chose to put a Zabbix proxy at home. The agents only talk to the proxy over the LAN. The proxy opens one outbound connection to Azure on port 10051, and since it starts from my side, CGNAT doesn't get in the way. The link is encrypted with a pre-shared key (PSK), which also proves it's really my proxy no matter who else is on that IP. If my internet drops, the proxy keeps up to 24 hours of data and sends it when the link comes back.
 
 ## Architecture
 
@@ -23,26 +31,42 @@ flowchart LR
   T["Teammates"] -.->|"Tailscale<br/>4via6"| HOME
 ```
 
+This diagram shows the full planned design. Only sa-web1 is connected so far, and the email alerts don't exist yet.
+
 | Host | Where | Role |
 |---|---|---|
 | sa-web1 / sa-web2 / sa-web3 | Proxmox VMs 211–213, Ubuntu 24.04 | Web servers (NGINX, Apache, …) + Zabbix agent2 |
 | sa-proxy | Proxmox VM 214, Ubuntu 24.04 | Zabbix proxy: collects from agents, forwards to the server |
 | Zabbix server | Azure VM | Stores data, evaluates triggers, sends alerts, serves dashboards |
 
+## Where it's at
+
+Done and working:
+
+- The Proxmox pool, per-person accounts and Tailscale access for the team.
+- The Proxmox firewall, which I tested.
+- sa-proxy, online and connected to Azure over PSK.
+- sa-web1 (NGINX), monitored end to end.
+
+Still to do:
+
+- sa-web2 is in progress. The host is added in Zabbix, but Apache and the agent aren't installed yet.
+- sa-web3 hasn't started. We haven't picked its web server.
+- The alerts and email aren't built. Neither are the log monitoring items they depend on.
+
 ## What it monitors
 
-CPU, memory, network in/out, disk throughput, disk free space, uptime, web service state, system logs (auth, kernel) and web server error logs — each with an **email alert** (8 alerts total, e.g. unauthorized `sudo`, web service down, CPU > 75%). See [docs/07-alerts.md](docs/07-alerts.md).
+Right now sa-web1 reports the standard metrics from Zabbix's Linux template: CPU, memory, network in/out, disk throughput, disk free space and uptime.
 
-## Key design decisions
+The plan adds web service state, system logs (auth, kernel) and web server error logs. On top of that come the 8 email alerts, like unauthorized `sudo`, web service down and CPU over 75%. The plan for each one is in [docs/07-alerts.md](docs/07-alerts.md).
 
-| Decision | Why |
-|---|---|
-| **Zabbix proxy at home** instead of agents talking to the cloud | CGNAT blocks inbound connections and the public IP is shared with strangers. The proxy connects out, authenticates with a PSK, and buffers up to 24 h |
-| **Active + passive checks** | Passive (proxy → agent :10050) for metrics and availability; active (agent → proxy :10051) for log monitoring, which is active-only |
-| **Proxmox firewall** rather than ufw inside VMs | Enforced on the hypervisor, so a compromised VM can't disable it. One Security Group applies the same rules to every web VM; the agent port only accepts the proxy |
-| **Tailscale 4via6** for team access | Every teammate's home LAN is also 192.168.1.0/24; 4via6 gives the lab a unique address range without renumbering |
-| **Least-privilege accounts** | Per-person Proxmox accounts limited to the lab pool; Tailscale grants limited to the Proxmox UI and lab VMs |
-| **VMs, not containers** | Each VM has its own kernel, so CPU/memory/disk metrics are real |
+## Why I set it up this way
+
+- I use both passive and active checks. Passive means the proxy asks the agent on 10050. Active means the agent connects to the proxy on 10051, and Zabbix log monitoring only works that way. I learned this when I left out the 10051 rule on sa-proxy and the agent timed out.
+- I chose the Proxmox firewall over ufw because it runs on the hypervisor, so a compromised VM can't turn it off. One Security Group on the web VMs allows 10050 only from the proxy, and sa-proxy allows 10051 only from the 3 web VMs. In my tests the proxy reached the agent and sa-web2 got blocked.
+- Team access goes through Tailscale with 4via6 (site 7). Every teammate's home LAN is also 192.168.1.0/24, so normal subnet routes clash. 4via6 gives the lab its own addresses and nobody has to renumber anything.
+- Everyone gets their own Proxmox account, limited to the lab pool. Tailscale only lets teammates reach the Proxmox UI and the lab VMs.
+- I used VMs instead of containers. Each VM has its own kernel, so the CPU, memory and disk numbers are real.
 
 ## Documentation
 
@@ -59,12 +83,8 @@ CPU, memory, network in/out, disk throughput, disk free space, uptime, web servi
 | [08-cli-labs](docs/08-cli-labs.md) | Watching each step from the terminal: `zabbix_get`, `tcpdump`, proxy DB, API |
 | [09-qa-cheatsheet](docs/09-qa-cheatsheet.md) | Common questions and answers |
 
-Sanitized config files are in [configs/](configs/). Secrets (PSK keys, API tokens) are never committed.
+Sanitized config files are in [configs/](configs/). Secrets like PSK keys and API tokens never get committed.
 
 ## Stack
 
 Proxmox VE 9 · Ubuntu 24.04 · Zabbix 8.0 (server, proxy, agent2) · SQLite · NGINX · Apache · Tailscale · Microsoft Azure
-
-## Team
-
-Chanathip (homelab, proxy, firewall, access) · Pollapat (sa-web1) · Supanut (sa-web2) · Tonkla · Azure server owner
