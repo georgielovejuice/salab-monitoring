@@ -3,7 +3,7 @@
 **Course:** 01276521 Practice of System Administration, KMITL
 **Assignment:** Network Monitoring System (35%), demo + Q&A with the instructor
 **Planned submission / demo:** this **Thursday–Friday** (official deadline Nov 18)
-**Team:** Chanathip (homelab owner, sa-web3), Pollapat (sa-web1), Supanut (sa-web2), Tonkla, + Azure VM owner (name TBD)
+**Team:** me (homelab owner, sa-web3), my teammate (sa-web1), my teammate (sa-web2), my teammate, my teammate (Azure VM owner)
 
 > Big picture: what we're building, what's done, what's next. Details live in the topic files.
 
@@ -63,8 +63,8 @@ Firewall: Proxmox firewall (Security Group sa-web, sa-proxy rules) + agent Serve
 
 ## Next
 
-- **Supanut:** sa-web2 — Apache + agent2, following [06-zabbix-agent.md](06-zabbix-agent.md) steps 0–5.
-- **Chanathip:** sa-web3 — pick the web server, then the same runbook.
+- **My teammate:** sa-web2 — Apache + agent2, following [06-zabbix-agent.md](06-zabbix-agent.md) steps 0–5.
+- **Me:** sa-web3 — pick the web server, then the same runbook.
 
 ---
 

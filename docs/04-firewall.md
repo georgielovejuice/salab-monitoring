@@ -68,8 +68,8 @@ Teammate ─► [Tailscale policy] ─► CT 103 ─► [Proxmox firewall] ─�
 | Place | Rule | Owner |
 |---|---|---|
 | Azure **NSG** (Azure's network firewall in front of the VM) | Inbound TCP 10051 from `<HOME_PUBLIC_IP>` | Azure teammate |
-| Zabbix UI → proxy → "Proxy address" | `<HOME_PUBLIC_IP>` | Chanathip |
-| Zabbix UI → proxy → Encryption | **PSK only** | Chanathip |
+| Zabbix UI → proxy → "Proxy address" | `<HOME_PUBLIC_IP>` | Me |
+| Zabbix UI → proxy → Encryption | **PSK only** | Me |
 
 If the home public IP changes (`curl -4 ifconfig.me` on sa-proxy, or proxy shows Offline): update/remove it in **both** places. PSK still authenticates; the proxy buffers meanwhile.
 
