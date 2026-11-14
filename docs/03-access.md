@@ -8,8 +8,8 @@ Two locks: **Tailscale** decides who can reach the network (network lock); **Pro
 
 | Object | Value |
 |---|---|
-| Pool | `salab` = VMs 211, 212, 213, 214 |
-| Group | `salab-team` = one `<name>@pve` account per teammate |
+| Pool | `salab` = VMs 211, 212, 213, 214, 215 |
+| Group | `salab-team` = `<name>@pve`, `<name>@pve`, `<name>@pve` |
 | Permission | path `/pool/salab`, group `salab-team`, role `PVEVMAdmin`, propagate |
 | Login realm | **Proxmox VE authentication server** (not Linux PAM) |
 
@@ -46,11 +46,13 @@ Route approved in the admin console.
     "sa-web1": "fd7a:115c:a1e0:b1a:0:7:c0a8:133",
     "sa-web2": "fd7a:115c:a1e0:b1a:0:7:c0a8:134",
     "sa-web3": "fd7a:115c:a1e0:b1a:0:7:c0a8:135",
+    "sa-proxy": "fd7a:115c:a1e0:b1a:0:7:c0a8:136",
+    "sa-web4": "fd7a:115c:a1e0:b1a:0:7:c0a8:137",
   },
   "grants": [
     {"src": ["autogroup:admin"], "dst": ["*"], "ip": ["*"]},
     {"src": ["group:team"], "dst": ["proxmox"], "ip": ["tcp:8006"]},
-    {"src": ["group:team"], "dst": ["sa-web1", "sa-web2", "sa-web3"], "ip": ["tcp:22", "tcp:80", "icmp:*", "ipv6-icmp:*"]},
+    {"src": ["group:team"], "dst": ["sa-web1", "sa-web2", "sa-web3", "sa-web4", "sa-proxy"], "ip": ["tcp:22", "tcp:80", "icmp:*", "ipv6-icmp:*"]},
   ],
   "tests": [ /* each member: accept proxmox:8006 + sa-web ports; deny proxmox:22 */ ],
 }
@@ -60,16 +62,16 @@ Route approved in the admin console.
 |---|---|
 | Owner (`autogroup:admin`) | Everything |
 | `group:team` | Proxmox UI tcp:8006 only |
-| `group:team` | sa-web1..3: SSH, HTTP, ping |
+| `group:team` | sa-web1..4 + sa-proxy: SSH, HTTP, ping |
 
 `tests` = assertions Tailscale checks every time the policy is saved; a policy that breaks them is rejected.
 
-**TODO:** add `"sa-proxy": "fd7a:115c:a1e0:b1a:0:7:c0a8:136"` to `hosts` and to the web VM grant `dst`.
+Done: sa-proxy (`c0a8:136` = .54) and sa-web4 (`c0a8:137` = .55) added to `hosts` and the lab grant; tests also cover sa-web4 and sa-proxy.
 
 Troubleshooting a teammate: dorm networks may block Tailscale (`tailscale netcheck`; phone hotspot works).
 
-## Zabbix UI accounts (todo)
+## Zabbix UI accounts (planned, never set up)
 
 - One account per member; `Admin` kept as break-glass with a long password.
 - Professor: read-only user, permission limited to host group **`salab`** (group exists).
-- Later: Cloudflare Tunnel + Access at `zabbix.<our-domain>`, login by email (`<instructor email>`).
+- Cloudflare Tunnel + Access (`zabbix.<our-domain>`) was planned for instructor access but not needed: the demo was done in person.

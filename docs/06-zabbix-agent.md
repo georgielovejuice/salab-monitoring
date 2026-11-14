@@ -1,20 +1,27 @@
-# 06 — Zabbix agent2 runbook (sa-web2, sa-web3)
+# 06 — Zabbix agent2 runbook (add a web VM)
 
 Back to [README](../README.md) · [Progress](00-progress.md)
 
-Done on sa-web1 (Nov 10). Follow the same steps on your VM. Replace `X` with your number (2 or 3). **Understand each line — the instructor will ask.**
+Used for sa-web1 → sa-web4 (all done). Replace `X` with the VM number. Exception: sa-web4 is `192.168.1.55`, because .54 is sa-proxy. **Understand each line — the instructor will ask.**
+
+Pitfalls we actually hit:
+- sa-web4 first had `Server=`/`ServerActive=` pointing at **Azure** → must point at the proxy `192.168.1.54`.
+- sa-web4 had agent **7.0** from the wrong repo → discovery rules "Not supported (invalid number of parameters)", 51 instead of ~89 items. Fix: add the 8.0 repo, `apt install zabbix-agent2`, answer **N** (keep your config) at the conffile prompt, restart.
+- New VM left on DHCP → set a static IP.
+- Hosts now use template **Linux by Zabbix agent active** (+ ICMP Ping); `ServerActive` and `Hostname` are the lines that matter.
 
 | VM | Hostname | IP | Web server | Error log |
 |---|---|---|---|---|
 | sa-web1 | `sa-web1` | 192.168.1.51 | NGINX | `/var/log/nginx/error.log` |
 | sa-web2 | `sa-web2` | 192.168.1.52 | Apache | `/var/log/apache2/error.log` |
-| sa-web3 | `sa-web3` | 192.168.1.53 | TBD | — |
+| sa-web3 | `sa-web3` | 192.168.1.53 | NGINX | `/var/log/nginx/error.log` |
+| sa-web4 | `sa-web4` | 192.168.1.55 | NGINX | `/var/log/nginx/error.log` |
 
 ## 0. Web server + time zone
 
 ```bash
 sudo timedatectl set-timezone Asia/Bangkok
-sudo apt update && sudo apt install -y apache2      # sa-web2 (sa-web3: nginx or your choice)
+sudo apt update && sudo apt install -y apache2      # sa-web2 (sa-web1/3/4: nginx)
 systemctl status apache2 --no-pager
 curl -I localhost
 ```
@@ -92,18 +99,18 @@ zabbix_get -s 192.168.1.5X -k agent.ping        # expect: 1
 
 ## 6. Zabbix UI
 
-sa-web2 is **already added**. For sa-web3:
+For a new host:
 1. Data collection → Hosts → Create host
-2. Host name `sa-web3`, Template `Linux by Zabbix agent`, Host group `salab`
-3. Interfaces → Add → Agent: `192.168.1.53`, port `10050`
+2. Host name `sa-webX`, Templates `Linux by Zabbix agent active` + `ICMP Ping`, Host group `salab`
+3. Interfaces → Add → Agent: the VM's IP from the table above, port `10050`
 4. Monitored by → **Proxy → sa-proxy** → Add
 5. On sa-proxy: `sudo zabbix_proxy -R config_cache_reload` (pushes the new host to the proxy now)
 
-Done when **ZBX is green** and Monitoring → Latest data shows values. Then **snapshot the VM** (`agent-ok`) and update Context.md.
+Done when **ZBX is green** and Monitoring → Latest data shows values. Then **snapshot the VM** (`agent-ok`) and update [00-progress.md](00-progress.md).
 
 ## Firewall
 
-Nothing to do: the Proxmox Security Group `sa-web` is already on VMs 212 and 213, and sa-proxy already accepts 10051 from .52 and .53. See [04-firewall.md](04-firewall.md).
+For a NEW VM: insert Security Group `sa-web` on it and add its IP to sa-proxy's 10051 rule (done for 211, 212, 213, 215). See [04-firewall.md](04-firewall.md).
 
 ## Troubleshooting
 

@@ -8,26 +8,29 @@ Back to [README](../README.md) · [Progress](00-progress.md)
 HOME: Proxmox "kim-sever" (192.168.1.10), LAN 192.168.1.0/24, behind ISP CGNAT
   VM 211 sa-web1   192.168.1.51   Ubuntu 24.04 + NGINX     + agent2
   VM 212 sa-web2   192.168.1.52   Ubuntu 24.04 + Apache    + agent2
-  VM 213 sa-web3   192.168.1.53   Ubuntu 24.04 + (TBD)     + agent2
-  VM 214 sa-proxy  192.168.1.54   Ubuntu 24.04 + Zabbix proxy 8.0 (SQLite)
+  VM 213 sa-web3   192.168.1.53   Ubuntu 24.04 + NGINX     + agent2
+  VM 215 sa-web4   192.168.1.55   Ubuntu 24.04 + NGINX     + agent2
+  VM 214 sa-proxy  192.168.1.54   Ubuntu 24.04 + Zabbix proxy 8.0 (SQLite) + agent2
         |
-        |  agents talk ONLY to the proxy, over the LAN (10050 / 10051)
+        |  agents push to the proxy (active checks, :10051)
+        |  proxy pings each VM + checks TCP :80 (agentless, from outside)
         v
   sa-proxy --- one outbound TCP 10051 connection, PSK-encrypted ---> AZURE
 
 AZURE VM <AZURE_PUBLIC_IP> (managed by a teammate)
-  Zabbix server 8.0.0 + web UI (nginx + PHP), UI at http://<AZURE_PUBLIC_IP>/
+  Zabbix server 8.0.0 + web UI, installed with Docker Compose, UI at http://<AZURE_PUBLIC_IP>/
   Database, triggers, alert emails, dashboards
 ```
 
 ## Machines
 
-| VM | Name | IP | Spec | OS login | Web server | Status |
+| VM | Name | IP | Spec | OS user | Web server | Status |
 |---|---|---|---|---|---|---|
-| 211 | sa-web1 | 192.168.1.51 | 2 vCPU, 2 GB (no balloon), 20 GB | member account | NGINX | Monitored, ZBX green |
-| 212 | sa-web2 | 192.168.1.52 | same | member account | Apache HTTP (planned) | Host in UI, agent todo |
-| 213 | sa-web3 | 192.168.1.53 | same | member account | TBD — recommend NGINX (standard error.log with `[error]`/`[crit]`) | Ubuntu only |
-| 214 | sa-proxy | 192.168.1.54 | 1 vCPU, 1 GB (no balloon), 15 GB | admin account | none | Proxy online |
+| 211 | sa-web1 | 192.168.1.51 | 2 vCPU, 2 GB (no balloon) | member account | NGINX | Monitored |
+| 212 | sa-web2 | 192.168.1.52 | same | member account | Apache HTTP | Monitored |
+| 213 | sa-web3 | 192.168.1.53 | same | member account | NGINX | Monitored |
+| 215 | sa-web4 | 192.168.1.55 | same | member account | NGINX | Monitored |
+| 214 | sa-proxy | 192.168.1.54 | 1 vCPU, 1 GB (no balloon), 15 GB | member account | none | Proxy online + monitored as a host |
 | Azure | Zabbix server | <AZURE_PUBLIC_IP> | — | teammate | nginx (UI) | Zabbix 8.0.0 |
 
 - All lab VMs are in Proxmox pool **`salab`**.
@@ -66,7 +69,7 @@ Standard Zabbix pattern for remote sites / branch offices.
 |---|---|---|
 | ① | You | Host added in UI → stored in server DB |
 | ② | Proxy → server :10051 | Proxy identifies as `sa-proxy` (Hostname + PSK identity), downloads only hosts whose **Monitored by = sa-proxy**, with interfaces and items |
-| ③a Passive | Proxy → agent :10050 | Proxy asks for one value at a time |
+| ③a Passive | Proxy → agent :10050 | Proxy asks for one value at a time. Final setup uses the active template, so passive is only used for `zabbix_get` debugging |
 | ③b Active | Agent → proxy :10051 | Agent says "I'm `sa-web1`", gets its check list, collects itself (logs), pushes results. Unknown name → `host [sa-web1] not found` |
 | ④ | Proxy | Values stored in local SQLite, buffered if Azure unreachable |
 | ⑤ | Proxy → server :10051 | Batches sent (itemid, time, value); server saves, evaluates triggers → action → email |
@@ -79,7 +82,7 @@ The host form's **Monitored by → Proxy → sa-proxy** is stored on the server.
 
 ## Templates (where the default metrics come from)
 
-We linked the built-in template **Linux by Zabbix agent**. A template is a bundle copied onto the host:
+We linked the built-in template **Linux by Zabbix agent active** (first **Linux by Zabbix agent**, the passive version). A template is a bundle copied onto the host:
 
 | Part | Example |
 |---|---|
@@ -88,7 +91,22 @@ We linked the built-in template **Linux by Zabbix agent**. A template is a bundl
 | Discovery rules (LLD) | Finds every disk, filesystem and NIC and creates items |
 | Graphs / dashboards | "Linux Dashboard" on the host |
 
-Alerts D, E, H already exist in the template (we tune thresholds). A, B, C, F, G need our own items/triggers.
+Final triggers: see [07-alerts.md](07-alerts.md). Template items we changed: intervals of CPU idle/user, available memory (+%), load 1m, `Get network interfaces`, `Get block devices`, `{#DEVNAME}: Get stats` (10 s), `FS [{#FSNAME}]: Get data` (30 s); added `net.tcp.service[http]` simple check and value map `Service state`. Note: editing the vendor template means a re-import would overwrite it; cloning or macros is the cleaner production approach.
+
+## Inside vs outside checks (agent-based + agentless)
+
+| View | Who checks | Items | When the VM is powered off |
+|---|---|---|---|
+| Inside (agent-based) | agent2 on the VM, active checks | CPU, memory, disk, network, uptime, all logs | Goes silent; widgets keep the last (stale) value |
+| Outside (agentless) | sa-proxy | `icmpping` (ICMP Ping template, 10 s, fping, `StartPingers=2`) · simple check `net.tcp.service[http]` (10 s, value map Service state 0 Down / 1 Up) | Reports **Down** |
+
+| Ping | Agent heartbeat | Diagnosis |
+|---|---|---|
+| Up | available | All fine |
+| Up | not available | VM fine, agent crashed/stopped |
+| Down | not available | VM down |
+
+Global view shows two honeycombs: **VM state (ping from proxy)** and **Web service (HTTP from proxy)**.
 
 ## Plan B: everything at home
 

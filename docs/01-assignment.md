@@ -5,7 +5,7 @@ Back to [README](../README.md) · [Progress](00-progress.md)
 - At least **4 VMs** (personal computer or public cloud).
 - Log centralization + network monitoring: **open source, installed manually on Linux**. No cloud-based or managed monitoring services.
 - Collect from **at least 3 Linux VMs**, each running a **web server**.
-- Demo + instructor Q&A by Nov 18 (official). **We plan to submit/demo this Thursday–Friday.**
+- Demo + instructor Q&A by Nov 18 (official). **Done on Nov 13, 2026.**
 
 | # | Marking item | Pts |
 |---|---|---|
@@ -41,8 +41,8 @@ How each is implemented: [07-alerts.md](07-alerts.md).
 
 | Requirement | Ours |
 |---|---|
-| ≥ 4 VMs | sa-web1, sa-web2, sa-web3, sa-proxy (Proxmox) + Zabbix server (Azure) = 5 |
-| Log centralization system | Zabbix server (log items from auth/kern/web logs stored centrally) |
-| Network monitoring system | Zabbix server (metrics, availability, triggers) |
-| Open source, manual install | Zabbix 8.0 from the official repo, installed by hand |
-| ≥ 3 Linux VMs with web servers | sa-web1 nginx, sa-web2 Apache, sa-web3 (TBD) |
+| ≥ 4 VMs | sa-web1, sa-web2, sa-web3, sa-web4, sa-proxy (Proxmox) + Zabbix server (Azure) = 6 |
+| Log centralization system | Zabbix server (log items from auth/kern/web access/web error logs stored centrally) |
+| Network monitoring system | Zabbix server (metrics, availability from the proxy, triggers, email) |
+| Open source, manual install | Zabbix 8.0: proxy and agents from the official repo, server with Docker Compose, all set up by hand |
+| ≥ 3 Linux VMs with web servers | sa-web1 NGINX, sa-web2 Apache, sa-web3 NGINX, sa-web4 NGINX |

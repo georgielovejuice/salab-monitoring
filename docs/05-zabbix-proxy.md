@@ -2,7 +2,7 @@
 
 Back to [README](../README.md) · [Progress](00-progress.md)
 
-IP 192.168.1.54, Ubuntu 24.04, package `zabbix-proxy-sqlite3` 8.0.0.
+User member account, IP 192.168.1.54, Ubuntu 24.04, package `zabbix-proxy-sqlite3` 8.0.0.
 
 ## Build steps
 
@@ -26,9 +26,11 @@ ProxyOfflineBuffer=24                        # keep up to 24 h of data if Azure 
 TLSConnect=psk
 TLSPSKIdentity=sa-proxy
 TLSPSKFile=/etc/zabbix/zabbix_proxy.psk
+StartPingers=2                               # 2 ICMP pinger processes (1 was at ~61% busy)
+FpingLocation=/usr/bin/fping                 # fping for the ICMP Ping template
 ```
 
-UI: Administration → Proxies → `sa-proxy`, mode **Active**, Encryption **PSK only** (same identity + key), Proxy address `<HOME_PUBLIC_IP>`.
+UI: Administration → Proxies → `sa-proxy`, mode **Active**, Encryption **PSK only** (same identity + key), Proxy address **empty** (it was `<HOME_PUBLIC_IP>` until the home IP changed, see [04-firewall.md](04-firewall.md)).
 
 ## Result
 
